@@ -72,13 +72,12 @@ function wearOf(sig: string, failed: boolean): Wear {
 }
 
 function placeholder(slot: number): Card {
-  const serial = String(slot % 10000).padStart(4, '0')
   return {
     family: '???',
     sig: `wait:${slot}`,
     failed: false,
     wear: 'none',
-    serial,
+    serial: 'REEL',
   }
 }
 
@@ -187,16 +186,21 @@ export class MutoscopeCabinet {
 
     if (this.pending && (free || this.reduced || (this.frozen && !this.current))) {
       const spec = pull()
-      const next = spec ? toCard(spec) : placeholder(this.slot ?? 0)
-      if (this.current && !this.reduced && !this.frozen) {
-        this.outgoing = this.current
-        this.flip = 0
-      } else {
+      if (spec) {
+        const next = toCard(spec)
+        if (this.current && !this.reduced && !this.frozen) {
+          this.outgoing = this.current
+          this.flip = 0
+        } else {
+          this.flip = 1
+        }
+        this.current = next
+        this.flashing = false
+      } else if (!this.current) {
+        this.current = placeholder(this.slot ?? 0)
         this.flip = 1
       }
-      this.current = next
       this.pending = false
-      this.flashing = false
     }
 
     this.flashing = now < this.blankUntil && now >= this.lingerUntil && this.flip >= 1
@@ -250,27 +254,31 @@ export class MutoscopeCabinet {
   }
 
   private paintParlor(ctx: CanvasRenderingContext2D, L: Layout) {
-    const g = ctx.createRadialGradient(L.w * 0.4, L.h * 0.18, 10, L.w * 0.5, L.h * 0.5, Math.max(L.w, L.h) * 0.78)
-    g.addColorStop(0, '#2a1a0e')
-    g.addColorStop(0.4, PALETTE.soot)
-    g.addColorStop(1, '#080604')
+    const g = ctx.createRadialGradient(L.w * 0.42, L.h * 0.12, 8, L.w * 0.5, L.h * 0.48, Math.max(L.w, L.h) * 0.82)
+    g.addColorStop(0, '#3A2214')
+    g.addColorStop(0.28, '#1C1008')
+    g.addColorStop(1, '#060402')
     ctx.fillStyle = g
     ctx.fillRect(0, 0, L.w, L.h)
 
-    const drape = ctx.createLinearGradient(0, 0, 0, L.h * 0.35)
-    drape.addColorStop(0, rgba('#2A1014', 0.55))
-    drape.addColorStop(1, 'rgba(0,0,0,0)')
-    ctx.fillStyle = drape
-    ctx.fillRect(0, 0, L.w, L.h * 0.4)
+    const drapeL = ctx.createLinearGradient(0, 0, L.w * 0.22, 0)
+    drapeL.addColorStop(0, rgba('#3A1018', 0.62))
+    drapeL.addColorStop(1, 'rgba(0,0,0,0)')
+    ctx.fillStyle = drapeL
+    ctx.fillRect(0, 0, L.w * 0.28, L.h)
+    const drapeR = ctx.createLinearGradient(L.w, 0, L.w * 0.78, 0)
+    drapeR.addColorStop(0, rgba('#2A0C12', 0.55))
+    drapeR.addColorStop(1, 'rgba(0,0,0,0)')
+    ctx.fillStyle = drapeR
+    ctx.fillRect(L.w * 0.72, 0, L.w * 0.28, L.h)
 
     ctx.save()
-    ctx.globalAlpha = 0.07
-    ctx.strokeStyle = PALETTE.walnut
-    ctx.lineWidth = 1
-    for (let y = L.h * 0.72; y < L.h; y += 7) {
+    ctx.strokeStyle = rgba('#2A160C', 0.55)
+    ctx.lineWidth = 3
+    for (let y = L.h * 0.78; y < L.h; y += 9) {
       ctx.beginPath()
       ctx.moveTo(0, y)
-      ctx.lineTo(L.w, y + Math.sin(y * 0.2) * 1.5)
+      ctx.lineTo(L.w, y + Math.sin(y * 0.18) * 2)
       ctx.stroke()
     }
     ctx.restore()
@@ -294,97 +302,152 @@ export class MutoscopeCabinet {
     const y = L.top
     const w = L.cabW
     const h = L.cabH
-    const r = 10
+    const r = 8
+    const depth = Math.max(14, w * 0.055)
 
     ctx.save()
-    this.roundRect(ctx, x + 8, y + 10, w, h, r)
-    ctx.fillStyle = 'rgba(0,0,0,0.45)'
+    this.roundRect(ctx, x + 14, y + 18, w, h, r)
+    ctx.fillStyle = 'rgba(0,0,0,0.55)'
+    ctx.fill()
+
+    ctx.beginPath()
+    ctx.moveTo(x + w - r, y)
+    ctx.lineTo(x + w + depth, y + depth * 0.45)
+    ctx.lineTo(x + w + depth, y + h + depth * 0.45)
+    ctx.lineTo(x + w - r, y + h)
+    ctx.closePath()
+    const side = ctx.createLinearGradient(x + w, y, x + w + depth, y)
+    side.addColorStop(0, '#2A160C')
+    side.addColorStop(0.5, '#1A0E08')
+    side.addColorStop(1, '#0E0804')
+    ctx.fillStyle = side
+    ctx.fill()
+
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+    ctx.lineTo(x + depth * 0.35, y - depth * 0.28)
+    ctx.lineTo(x + w + depth, y + depth * 0.45 - depth * 0.28)
+    ctx.lineTo(x + w, y)
+    ctx.closePath()
+    ctx.fillStyle = '#3A2414'
     ctx.fill()
 
     this.roundRect(ctx, x, y, w, h, r)
     const wood = ctx.createLinearGradient(x, y, x + w, y)
-    wood.addColorStop(0, '#2A160C')
-    wood.addColorStop(0.18, PALETTE.walnut)
-    wood.addColorStop(0.45, '#5A3620')
-    wood.addColorStop(0.7, '#3A2212')
-    wood.addColorStop(1, '#24140A')
+    wood.addColorStop(0, '#24140A')
+    wood.addColorStop(0.12, '#5C381C')
+    wood.addColorStop(0.38, '#6A4022')
+    wood.addColorStop(0.62, '#3E2412')
+    wood.addColorStop(0.88, '#5A3418')
+    wood.addColorStop(1, '#1C1008')
     ctx.fillStyle = wood
     ctx.fill()
 
     ctx.save()
+    this.roundRect(ctx, x, y, w, h, r)
     ctx.clip()
-    ctx.globalAlpha = 0.14
+    ctx.globalAlpha = 0.38
     ctx.strokeStyle = '#1A0C06'
-    ctx.lineWidth = 2
+    ctx.lineWidth = 1.6
     const rng = mulberry32(0xcab1)
-    for (let i = 0; i < 28; i++) {
-      const gy = y + 8 + rng() * (h - 16)
+    for (let i = 0; i < 42; i++) {
+      const gy = y + 6 + rng() * (h - 12)
       ctx.beginPath()
       ctx.moveTo(x, gy)
-      ctx.bezierCurveTo(x + w * 0.3, gy + (rng() - 0.5) * 8, x + w * 0.7, gy + (rng() - 0.5) * 8, x + w, gy)
+      ctx.bezierCurveTo(
+        x + w * 0.28,
+        gy + (rng() - 0.5) * 10,
+        x + w * 0.7,
+        gy + (rng() - 0.5) * 10,
+        x + w,
+        gy,
+      )
+      ctx.stroke()
+    }
+    ctx.globalAlpha = 0.12
+    ctx.strokeStyle = PALETTE.lamp
+    for (let i = 0; i < 8; i++) {
+      const gx = x + 20 + rng() * (w - 40)
+      ctx.beginPath()
+      ctx.moveTo(gx, y)
+      ctx.lineTo(gx + (rng() - 0.5) * 8, y + h)
       ctx.stroke()
     }
     ctx.restore()
 
-    ctx.strokeStyle = rgba(PALETTE.brass, 0.35)
-    ctx.lineWidth = 3
-    this.roundRect(ctx, x + 5, y + 5, w - 10, h - 10, 7)
+    ctx.strokeStyle = rgba(PALETTE.brass, 0.55)
+    ctx.lineWidth = 5
+    this.roundRect(ctx, x + 6, y + 6, w - 12, h - 12, 6)
+    ctx.stroke()
+    ctx.strokeStyle = rgba('#2A1608', 0.7)
+    ctx.lineWidth = 1.6
+    this.roundRect(ctx, x + 13, y + 13, w - 26, h - 26, 4)
     ctx.stroke()
 
-    ctx.strokeStyle = rgba(PALETTE.soot, 0.55)
-    ctx.lineWidth = 1.2
-    this.roundRect(ctx, x + 11, y + 11, w - 22, h - 22, 5)
+    this.roundRect(ctx, x + 22, y + 20, w - 44, h - 40, 4)
+    ctx.strokeStyle = rgba(PALETTE.soot, 0.45)
+    ctx.lineWidth = 2
     ctx.stroke()
+    ctx.fillStyle = rgba('#1A0E08', 0.18)
+    ctx.fill()
 
     const rivets = [
-      [x + 16, y + 16],
-      [x + w - 16, y + 16],
-      [x + 16, y + h - 16],
-      [x + w - 16, y + h - 16],
+      [x + 18, y + 18],
+      [x + w - 18, y + 18],
+      [x + 18, y + h - 18],
+      [x + w - 18, y + h - 18],
+      [x + 18, y + h * 0.5],
+      [x + w - 18, y + h * 0.5],
     ]
     for (const [rx, ry] of rivets) {
-      this.rivet(ctx, rx, ry, 4.2)
+      this.rivet(ctx, rx, ry, 5)
     }
 
-    const hood = ctx.createRadialGradient(L.holeX, L.holeY, L.holeR * 0.8, L.holeX, L.holeY, L.holeR * 1.55)
+    const hood = ctx.createRadialGradient(L.holeX, L.holeY, L.holeR * 0.72, L.holeX, L.holeY, L.holeR * 1.72)
     hood.addColorStop(0, 'rgba(0,0,0,0)')
-    hood.addColorStop(0.45, rgba('#14080A', 0.35))
-    hood.addColorStop(1, rgba('#0A0604', 0.72))
+    hood.addColorStop(0.38, rgba('#1A080C', 0.28))
+    hood.addColorStop(0.7, rgba('#12060A', 0.72))
+    hood.addColorStop(1, rgba('#080406', 0.88))
     ctx.fillStyle = hood
     ctx.beginPath()
-    ctx.arc(L.holeX, L.holeY, L.holeR * 1.52, 0, Math.PI * 2)
+    ctx.arc(L.holeX, L.holeY, L.holeR * 1.68, 0, Math.PI * 2)
     ctx.fill()
 
     ctx.restore()
   }
 
   private paintReel(ctx: CanvasRenderingContext2D, L: Layout) {
-    const cards = this.stack.slice(0, 5)
-    const baseX = L.holeX - L.holeR * 1.55
-    const baseY = L.holeY - L.holeR * 0.15
-    const cw = L.holeR * 0.42
-    const ch = L.holeR * 0.58
-    cards.forEach((card, i) => {
-      const ox = baseX - i * 3.2
-      const oy = baseY - i * 4.4
+    const shown = this.stack.length ? this.stack.slice(0, 5) : this.current ? [this.current] : []
+    const baseX = L.holeX - L.holeR * 1.62
+    const baseY = L.holeY + L.holeR * 0.05
+    const cw = L.holeR * 0.58
+    const ch = L.holeR * 0.78
+    const count = Math.max(shown.length, 4)
+    for (let i = count - 1; i >= 0; i--) {
+      const card = shown[i] ?? shown[shown.length - 1] ?? this.current
+      const tint = card ? familyColor(card.family) : PALETTE.sepia
+      const ox = baseX - i * 5.5
+      const oy = baseY - i * 7.2
       ctx.save()
       ctx.translate(ox, oy)
-      ctx.rotate(-0.18 - i * 0.03)
-      ctx.fillStyle = rgba(PALETTE.sepia, 0.72 - i * 0.08)
-      ctx.strokeStyle = rgba(familyColor(card.family), 0.55)
-      ctx.lineWidth = 2
+      ctx.rotate(-0.28 - i * 0.045)
+      ctx.fillStyle = 'rgba(0,0,0,0.35)'
+      ctx.fillRect(-cw / 2 + 3, -ch / 2 + 4, cw, ch)
+      ctx.fillStyle = rgba(PALETTE.sepia, 0.92 - i * 0.06)
       ctx.fillRect(-cw / 2, -ch / 2, cw, ch)
+      ctx.strokeStyle = rgba(tint, 0.88)
+      ctx.lineWidth = 3
       ctx.strokeRect(-cw / 2, -ch / 2, cw, ch)
-      ctx.fillStyle = rgba(familyColor(card.family), 0.55)
-      ctx.fillRect(-cw / 2 + 3, -ch / 2 + 3, cw - 6, 5)
+      ctx.fillStyle = rgba(tint, 0.82)
+      ctx.fillRect(-cw / 2, -ch / 2, cw, 8)
       ctx.restore()
-    })
+    }
 
     ctx.save()
-    ctx.strokeStyle = rgba(PALETTE.brass, 0.4)
-    ctx.lineWidth = 2
+    ctx.strokeStyle = rgba(PALETTE.brass, 0.65)
+    ctx.lineWidth = 3
     ctx.beginPath()
-    ctx.arc(baseX - 4, baseY - 18, L.holeR * 0.22, Math.PI * 0.15, Math.PI * 1.05)
+    ctx.arc(baseX + 2, baseY - 10, L.holeR * 0.34, Math.PI * 0.05, Math.PI * 1.15)
     ctx.stroke()
     ctx.restore()
   }
@@ -531,18 +594,21 @@ export class MutoscopeCabinet {
     this.cornerOrnament(ctx, -cw / 2 + 16, ch / 2 - 16, 1, -1, tint)
     this.cornerOrnament(ctx, cw / 2 - 16, ch / 2 - 16, -1, -1, tint)
 
-    ctx.fillStyle = rgba(PALETTE.walnut, 0.55)
-    ctx.font = `italic ${Math.max(10, L.holeR * 0.11)}px "Yeseva One", serif`
-    ctx.textAlign = 'center'
-    ctx.fillText('FRAME', 0, -ch * 0.32)
-
+    const waiting = card.sig.startsWith('wait:')
     ctx.fillStyle = tint
-    ctx.font = `${Math.max(18, L.holeR * 0.28)}px "Yeseva One", serif`
-    ctx.fillText(familyLabel(card.family).toUpperCase(), 0, -ch * 0.02)
+    ctx.fillRect(-cw / 2, -ch / 2, cw, ch * 0.22)
+    ctx.fillStyle = rgba(PALETTE.soot, 0.82)
+    ctx.font = `${Math.max(11, L.holeR * 0.12)}px "Courier Prime", monospace`
+    ctx.textAlign = 'center'
+    ctx.fillText(waiting ? 'THREADING' : 'FRAME', 0, -ch * 0.32)
 
-    ctx.fillStyle = rgba(PALETTE.soot, 0.72)
-    ctx.font = `${Math.max(11, L.holeR * 0.14)}px "Courier Prime", monospace`
-    ctx.fillText(card.serial, 0, ch * 0.18)
+    ctx.fillStyle = rgba(PALETTE.soot, 0.88)
+    ctx.font = `${Math.max(20, L.holeR * 0.3)}px "Yeseva One", serif`
+    ctx.fillText(waiting ? 'REEL' : familyLabel(card.family).toUpperCase(), 0, -ch * 0.02)
+
+    ctx.fillStyle = rgba(PALETTE.soot, 0.78)
+    ctx.font = `${Math.max(12, L.holeR * 0.15)}px "Courier Prime", monospace`
+    ctx.fillText(card.serial, 0, ch * 0.16)
 
     if (this.slot != null) {
       ctx.fillStyle = rgba(PALETTE.walnut, 0.5)
@@ -681,60 +747,77 @@ export class MutoscopeCabinet {
     const smear = !this.reduced && !this.frozen && heat > 0.35 ? 2 : 0
 
     ctx.beginPath()
-    ctx.moveTo(L.cx + L.cabW / 2 - 4, y)
-    ctx.lineTo(x - R * 0.2, y)
-    ctx.strokeStyle = rgba(PALETTE.brass, 0.7)
-    ctx.lineWidth = 7
+    ctx.moveTo(L.cx + L.cabW / 2 - 2, y)
+    ctx.lineTo(x - R * 0.15, y)
+    ctx.strokeStyle = '#2A160C'
+    ctx.lineWidth = 16
+    ctx.stroke()
+    ctx.strokeStyle = rgba(PALETTE.brass, 0.88)
+    ctx.lineWidth = 10
+    ctx.beginPath()
+    ctx.moveTo(L.cx + L.cabW / 2 - 2, y)
+    ctx.lineTo(x - R * 0.15, y)
     ctx.stroke()
 
     for (let g = smear; g >= 0; g--) {
-      const a = angle - g * 0.18 * heat
-      const alpha = g === 0 ? 1 : 0.18
+      const a = angle - g * 0.2 * heat
+      const alpha = g === 0 ? 1 : 0.2
       ctx.save()
       ctx.globalAlpha = alpha
       ctx.translate(x, y)
       ctx.rotate(a)
 
-      const disc = ctx.createRadialGradient(-R * 0.2, -R * 0.2, 2, 0, 0, R)
-      disc.addColorStop(0, rgba(PALETTE.lamp, 0.35 + heat * 0.35))
-      disc.addColorStop(0.45, PALETTE.brass)
-      disc.addColorStop(1, '#4A3010')
+      ctx.beginPath()
+      ctx.arc(0, 0, R * 1.08, 0, Math.PI * 2)
+      ctx.fillStyle = rgba(PALETTE.lamp, 0.12 + heat * 0.5)
+      ctx.fill()
+
+      const disc = ctx.createRadialGradient(-R * 0.25, -R * 0.25, 2, 0, 0, R)
+      disc.addColorStop(0, '#F2D48A')
+      disc.addColorStop(0.4, PALETTE.brass)
+      disc.addColorStop(0.75, '#7A5420')
+      disc.addColorStop(1, '#3A2410')
       ctx.beginPath()
       ctx.arc(0, 0, R, 0, Math.PI * 2)
       ctx.fillStyle = disc
       ctx.fill()
-      ctx.strokeStyle = rgba(PALETTE.soot, 0.5)
-      ctx.lineWidth = 2
+      ctx.strokeStyle = rgba(PALETTE.soot, 0.65)
+      ctx.lineWidth = 3
       ctx.stroke()
 
-      ctx.fillStyle = rgba(PALETTE.lamp, 0.15 + heat * 0.45)
-      ctx.beginPath()
-      ctx.arc(0, 0, R * 1.35, 0, Math.PI * 2)
-      ctx.fill()
+      ctx.strokeStyle = rgba(PALETTE.soot, 0.35)
+      ctx.lineWidth = 2
+      for (let s = 0; s < 6; s++) {
+        const t = (s / 6) * Math.PI * 2
+        ctx.beginPath()
+        ctx.moveTo(Math.cos(t) * R * 0.22, Math.sin(t) * R * 0.22)
+        ctx.lineTo(Math.cos(t) * R * 0.88, Math.sin(t) * R * 0.88)
+        ctx.stroke()
+      }
 
-      ctx.fillStyle = '#3A2410'
-      ctx.fillRect(R * 0.15, -4, R * 1.15, 8)
+      ctx.fillStyle = '#2A1608'
+      ctx.fillRect(R * 0.12, -5.5, R * 1.28, 11)
       ctx.fillStyle = PALETTE.brass
-      ctx.fillRect(R * 0.18, -2.4, R * 1.1, 5)
+      ctx.fillRect(R * 0.16, -3.2, R * 1.22, 6.4)
 
-      const hx = R * 1.28
-      const kn = ctx.createRadialGradient(hx - 2, -8, 1, hx, -4, 10)
-      kn.addColorStop(0, '#F0D890')
-      kn.addColorStop(0.5, PALETTE.brass)
+      const hx = R * 1.42
+      const kn = ctx.createRadialGradient(hx - 3, -10, 1, hx, -5, 12)
+      kn.addColorStop(0, '#F6E0A0')
+      kn.addColorStop(0.45, PALETTE.brass)
       kn.addColorStop(1, '#4A2C10')
       ctx.beginPath()
-      ctx.arc(hx, -6, 8, 0, Math.PI * 2)
+      ctx.arc(hx, -7, 11, 0, Math.PI * 2)
       ctx.fillStyle = kn
       ctx.fill()
       ctx.restore()
     }
 
-    if (heat > 0.4 && !this.reduced) {
+    if (heat > 0.32 && !this.reduced) {
       ctx.save()
-      ctx.globalAlpha = (heat - 0.4) * 0.5
+      ctx.globalAlpha = (heat - 0.28) * 0.55
       ctx.fillStyle = PALETTE.vermilion
       ctx.beginPath()
-      ctx.arc(x, y, R * 0.28, 0, Math.PI * 2)
+      ctx.arc(x, y, R * 0.22, 0, Math.PI * 2)
       ctx.fill()
       ctx.restore()
     }
@@ -743,36 +826,49 @@ export class MutoscopeCabinet {
 
   private paintLamp(ctx: CanvasRenderingContext2D, L: Layout, now: number) {
     const { lampX: x, lampY: y } = L
-    const s = L.cabW * 0.06
+    const s = L.cabW * 0.078
     ctx.save()
     ctx.translate(x, y)
 
-    ctx.fillStyle = '#2A160C'
-    ctx.fillRect(-s * 1.4, s * 0.9, s * 2.8, s * 0.35)
-    ctx.fillStyle = PALETTE.brass
-    ctx.fillRect(-s * 0.7, s * 0.4, s * 1.4, s * 0.55)
-
-    const heat = this.shuttered ? 0.25 : 0.55 + this.fee * 0.45 + this.flicker * 0.08
-    const flame = ctx.createRadialGradient(0, -s * 0.15, 1, 0, 0, s * 1.8)
-    flame.addColorStop(0, rgba('#FFF3C0', 0.85 * heat))
-    flame.addColorStop(0.35, rgba(PALETTE.lamp, 0.55 * heat))
-    flame.addColorStop(1, 'rgba(0,0,0,0)')
-    ctx.fillStyle = flame
+    ctx.fillStyle = '#1A0E08'
+    ctx.fillRect(-s * 1.7, s * 1.05, s * 3.4, s * 0.28)
+    const base = ctx.createLinearGradient(-s, s * 0.35, s, s * 1.05)
+    base.addColorStop(0, '#E8C878')
+    base.addColorStop(0.5, PALETTE.brass)
+    base.addColorStop(1, '#4A3010')
+    ctx.fillStyle = base
     ctx.beginPath()
-    ctx.ellipse(0, -s * 0.1, s * 1.1, s * 1.6, 0, 0, Math.PI * 2)
+    ctx.moveTo(-s * 0.85, s * 1.05)
+    ctx.lineTo(-s * 0.55, s * 0.35)
+    ctx.lineTo(s * 0.55, s * 0.35)
+    ctx.lineTo(s * 0.85, s * 1.05)
+    ctx.closePath()
     ctx.fill()
 
-    ctx.strokeStyle = rgba(PALETTE.sepia, 0.35)
-    ctx.lineWidth = 1.2
+    const heat = this.shuttered ? 0.28 : 0.62 + this.fee * 0.4 + this.flicker * 0.1
+    const bloom = ctx.createRadialGradient(0, -s * 0.2, 2, 0, 0, s * 2.4)
+    bloom.addColorStop(0, rgba('#FFF4C4', 0.9 * heat))
+    bloom.addColorStop(0.35, rgba(PALETTE.lamp, 0.45 * heat))
+    bloom.addColorStop(1, 'rgba(0,0,0,0)')
+    ctx.fillStyle = bloom
     ctx.beginPath()
-    ctx.moveTo(-s * 0.55, s * 0.4)
-    ctx.quadraticCurveTo(-s * 0.7, -s * 0.6, 0, -s * 1.35)
-    ctx.quadraticCurveTo(s * 0.7, -s * 0.6, s * 0.55, s * 0.4)
+    ctx.ellipse(0, -s * 0.2, s * 1.6, s * 2.1, 0, 0, Math.PI * 2)
+    ctx.fill()
+
+    ctx.strokeStyle = rgba(PALETTE.sepia, 0.45)
+    ctx.fillStyle = rgba(PALETTE.lamp, 0.08)
+    ctx.lineWidth = 1.6
+    ctx.beginPath()
+    ctx.moveTo(-s * 0.48, s * 0.35)
+    ctx.quadraticCurveTo(-s * 0.62, -s * 0.7, 0, -s * 1.55)
+    ctx.quadraticCurveTo(s * 0.62, -s * 0.7, s * 0.48, s * 0.35)
+    ctx.closePath()
+    ctx.fill()
     ctx.stroke()
 
-    ctx.fillStyle = rgba(PALETTE.lamp, 0.9)
+    ctx.fillStyle = rgba(PALETTE.lamp, 0.95)
     ctx.beginPath()
-    ctx.ellipse(0, 0, s * 0.18, s * 0.32, 0, 0, Math.PI * 2)
+    ctx.ellipse(0, -s * 0.05, s * 0.16, s * 0.38, 0, 0, Math.PI * 2)
     ctx.fill()
     ctx.restore()
     void now
